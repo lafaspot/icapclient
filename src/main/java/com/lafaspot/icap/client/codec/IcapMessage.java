@@ -214,7 +214,6 @@ public class IcapMessage {
             case PARSE_PAYLOAD:
                 if (0 == payloadLen) {
                     // bad
-                    logger.debug("bad - payloadLen is 0", null);
                     throw new IcapException(IcapException.FailureType.PARSE_ERROR);
                 }
                 final int availableLen = buf.writerIndex() - buf.readerIndex();
