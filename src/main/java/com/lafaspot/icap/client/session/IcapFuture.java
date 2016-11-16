@@ -46,6 +46,7 @@ public class IcapFuture implements Future<IcapResult> {
     /**
      * Cancel the Future task. TODO:
      *
+     * @param mayInterruptIfRunning should the task be cancelled if running?
      * @return true if cancel was successful
      */
     @Override

@@ -84,6 +84,7 @@ public class IcapMessage {
      * @param buf incoming buffer from channel
      * @param dec the decoder object
      */
+    @SuppressWarnings("checkstyle:illegalcatch")
     public void parse(@Nonnull final ByteBuf buf, @Nonnull final IcapMessageDecoder dec) {
         try {
             logger.debug("<- parse in - " + state + " - " + this.hashCode(), null);

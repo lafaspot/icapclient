@@ -126,7 +126,7 @@ public class IcapSession {
      * @return the future object
      * @throws IcapException on failure
      */
-    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @SuppressWarnings({ "unchecked", "rawtypes", "checkstyle:illegalcatch" })
     public Future<IcapResult> scanFile(@Nonnull final String filename, @Nonnull final byte[] fileToScan)
             throws IcapException {
 

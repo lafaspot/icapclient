@@ -88,7 +88,7 @@ public class IcapException extends Exception {
      * @param type failure type
      * @param ctx context
      */
-    public IcapException(@Nonnull FailureType type, @Nonnull IcapSession ctx) {
+    public IcapException(@Nonnull final FailureType type, @Nonnull final IcapSession ctx) {
         this.context = ctx;
         this.failureType = failureType;
     }
