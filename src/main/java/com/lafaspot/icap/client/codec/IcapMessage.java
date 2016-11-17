@@ -5,7 +5,6 @@ package com.lafaspot.icap.client.codec;
 
 import io.netty.buffer.ByteBuf;
 
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -45,8 +44,65 @@ public class IcapMessage {
     /** Offset used on parsing. */
     private int payloadOffset;
 
+    /** String buffer to hold the current parsed ICAP headers. */
+    private StringBuffer currentMessage = new StringBuffer(MAX_HEADER_BUFFER);
+
+    /** Payload length parsed from response. */
+    private int payloadLen;
+
+    /** Holds the response scanned/cleaned payload. */
+    private byte[] resPayload;
+
     /** The logger object. */
     private final Logger logger;
+
+    /** The result object. */
+    private IcapResult result = new IcapResult();
+
+    /** Parsed ICAP headers. */
+    private String[] icapHeaders;
+
+    /** Failure cause. */
+    private Exception cause;
+
+    /** ICAP message prefix. */
+    private static final String ICAP_PREFIX = "ICAP/1.0";
+
+    /** ICAP violations found prefix. */
+    private static final String ICAP_VIOLATIONS_PREFIX = "X-Violations-Found:";
+
+    /** ICAP Encapsulated header. */
+    private static final String ICAP_ENCAPSULATED_PREFIX = "Encapsulated:";
+
+    /** ICAP response body len prefix. */
+    private static final String ICAP_RES_BODY_PREFIX = "res-body";
+
+    /** ICAP response header len prefix. */
+    private static final String ICAP_RES_HDR_PREFIX = "res-hdr";
+
+    /** ICAP NULL body prefix. */
+    private static final String ICAP_NULL_BODY_PREFIX = "null-body";
+
+    /** ICAP header delimiter. */
+    private static final byte[] ICAP_ENDOFHEADER_DELIM = { '\r', '\n', '\r', '\n' };
+
+    /** HTTP status code 200. */
+    private static final int HTTP_STATUS_CODE_200 = 200;
+
+    /** HTTP status code 201. */
+    private static final int HTTP_STATUS_CODE_201 = 201;
+
+    /** HTTP status code 500. */
+    private static final int HTTP_STATUS_CODE_500 = 500;
+
+    /** Max buffer size. */
+    private static final int MAX_HEADER_BUFFER = 1024;
+
+    /** Max length of debug string in Exception. */
+    private static final int MAX_DEBUG_STR_LEN = 10;
+
+    /** Base for length parsing. */
+    private static final int HEX_BASE = 16;
 
     /**
      * Constructor.
@@ -67,6 +123,9 @@ public class IcapMessage {
         resPayload = null;
         icapHeaders = null;
         result = new IcapResult();
+        payloadLen = payloadOffset = 0;
+        nextStates.clear();
+        resPayload = null;
     }
 
     /**
@@ -87,7 +146,7 @@ public class IcapMessage {
     @SuppressWarnings("checkstyle:illegalcatch")
     public void parse(@Nonnull final ByteBuf buf, @Nonnull final IcapMessageDecoder dec) {
         try {
-            logger.debug("<- parse in - " + state + " - " + this.hashCode(), null);
+            // logger.debug("<- parse in - " + state + " - " + this.hashCode(), null);
             switch (state) {
             case PARSE_ICAP_MESSAGE: {
                 if (!parseForHeader(buf, ICAP_ENDOFHEADER_DELIM)) {
@@ -143,8 +202,7 @@ public class IcapMessage {
                     }
                 }
 
-                logger.debug("<- encap " + encapsulateHeaderVal + ", rh " + resHdr + ", rb " + resBody, null);
-
+                // logger.debug("<- encap " + encapsulateHeaderVal + ", rh " + resHdr + ", rb " + resBody, null);
                 if (-1 != resHdr) {
                     nextStates.add(State.PARSE_RES_HEADER);
                 }
@@ -163,7 +221,6 @@ public class IcapMessage {
 
             case PARSE_RES_HEADER: {
                 if (!parseForHeader(buf, ICAP_ENDOFHEADER_DELIM)) {
-                    logger.debug("<- in parse_res_header, not comple, r:" + buf.readerIndex() + ", w:" + buf.writerIndex(), null);
                     return;
                 }
 
@@ -186,13 +243,12 @@ public class IcapMessage {
                 }
 
                 state = nextStates.remove(0);
-                logger.debug(" done with parsing body - moving to " + state, null);
+                // logger.debug(" done with parsing body - moving to " + state, null);
                 break;
             }
 
             case PARSE_RES_PAYLOAD_LENGTH: {
                 if (!parseForHeader(buf, dec, ICAP_ENDOFHEADER_DELIM)) {
-                    logger.debug("<- in parse_res_header, not comple, r:" + buf.readerIndex() + ", w:" + buf.writerIndex(), null);
                     return;
                 }
                 final String lengthStr = currentMessage.toString().trim();
@@ -208,7 +264,7 @@ public class IcapMessage {
                 resPayload = new byte[payloadLen];
                 payloadOffset = 0;
                 state = nextStates.remove(0);
-                logger.debug(" done with parsing payload len=" + payloadLen + " - moving to " + state, null);
+                // logger.debug(" done with parsing payload len=" + payloadLen + " - moving to " + state, null);
                 break;
             }
 
@@ -230,7 +286,7 @@ public class IcapMessage {
                     payloadOffset += availableLen;
                 }
                 if (payloadOffset < payloadLen) {
-                    logger.debug("more to raad o " + payloadOffset + ", l " + payloadLen + ", ri " + buf.readerIndex(), null);
+                    // logger.debug("more to raad o " + payloadOffset + ", l " + payloadLen + ", ri " + buf.readerIndex(), null);
                     // still more to read
                     return;
                 }
@@ -241,7 +297,7 @@ public class IcapMessage {
                 result.setCleanedBytes(resPayload);
 
                 state = nextStates.remove(0);
-                logger.debug(" done with parsing payload of " + payloadLen + " bytes - moving to " + state, null);
+                // logger.debug(" done with parsing payload of " + payloadLen + " bytes - moving to " + state, null);
 
             case PARSE_DONE:
                 // reset the readIndex to avoid replay
@@ -256,6 +312,41 @@ public class IcapMessage {
             // reset the readIndex to avoid replay
             buf.readerIndex(buf.writerIndex());
         }
+    }
+
+    /**
+     * Get AV scan result.
+     *
+     * @return the result object
+     */
+    public IcapResult getResult() {
+        return result;
+    }
+
+    /**
+     * Get AV scan failure cause.
+     *
+     * @return failure cause if any
+     */
+    public Exception getCause() {
+        return cause;
+    }
+
+    @Override
+    public String toString() {
+        final StringBuffer buf = new StringBuffer();
+        if (null != cause) {
+            buf.append(cause);
+        }
+
+        if (null != icapHeaders) {
+            for (int i = 0; i < icapHeaders.length; i++) {
+                buf.append(icapHeaders[i]);
+                buf.append("\n");
+            }
+        }
+
+        return buf.toString();
     }
 
     /**
@@ -278,7 +369,7 @@ public class IcapMessage {
                     final String errorStatusStr = toks[1].length() > MAX_DEBUG_STR_LEN ? toks[1].substring(0, 0) : toks[1];
                     throw new IcapException(IcapException.FailureType.PARSE_ERROR, Arrays.asList("icapStatusHdr", errorStatusStr));
                 }
-                logger.debug("-- icap status code " + status, null);
+                // logger.debug("-- icap status code " + status, null);
                 switch (status) {
                 case HTTP_STATUS_CODE_201:
                     handleIcap201Ok(headers);
@@ -326,7 +417,7 @@ public class IcapMessage {
      * @throws IcapException on failure
      */
     private boolean parseForHeader(@Nonnull final ByteBuf buf, @Nonnull final byte[] delim) throws IcapException {
-        logger.debug(" parseHeader r:" + buf.readerIndex() + ", w:" + buf.writerIndex(), null);
+        // logger.debug(" parseHeader r:" + buf.readerIndex() + ", w:" + buf.writerIndex(), null);
         if (buf.readableBytes() < delim.length) {
             // error
             throw new IcapException(IcapException.FailureType.PARSE_ERROR);
@@ -367,7 +458,7 @@ public class IcapMessage {
     private boolean parseForHeader(@Nonnull final ByteBuf buf, @Nonnull final IcapMessageDecoder dec, @Nonnull final byte[] delim)
             throws IcapException {
 
-        logger.debug(" parseHeader r:" + buf.readerIndex() + ", w:" + buf.writerIndex(), null);
+        // logger.debug(" parseHeader r:" + buf.readerIndex() + ", w:" + buf.writerIndex(), null);
         if (buf.readableBytes() < delim.length) {
             // error
             throw new IcapException(IcapException.FailureType.PARSE_ERROR);
@@ -498,50 +589,6 @@ public class IcapMessage {
     }
 
     /**
-     * Get AV scan result.
-     *
-     * @return the result object
-     */
-    public IcapResult getResult() {
-        return result;
-    }
-
-    /**
-     * Get AV scan failure cause.
-     *
-     * @return failure cause if any
-     */
-    public Exception getCause() {
-        return cause;
-    }
-
-    /**
-     * Returns the cleaned stream from the server.
-     *
-     * @return cleaned stream
-     */
-    public OutputStream getResponseStream() {
-        return resStream;
-    }
-
-    @Override
-    public String toString() {
-        final StringBuffer buf = new StringBuffer();
-        if (null != cause) {
-            buf.append(cause);
-        }
-
-        if (null != icapHeaders) {
-            for (int i = 0; i < icapHeaders.length; i++) {
-                buf.append(icapHeaders[i]);
-                buf.append("\n");
-            }
-        }
-
-        return buf.toString();
-    }
-
-    /**
      * Parse ICAP headers.
      *
      * @param buf message buffer
@@ -551,58 +598,6 @@ public class IcapMessage {
         final Pattern pat = Pattern.compile("\r\n");
         return pat.split(buf);
     }
-
-    /** The result object. */
-    private IcapResult result = new IcapResult();
-
-    /** Parsed ICAP headers. */
-    private String[] icapHeaders;
-
-    /** Failure cause. */
-    private Exception cause;
-
-    /** Holds the cleaned/scanned outputstream. */
-    private OutputStream resStream;
-
-    /** ICAP message prefix. */
-    private static final String ICAP_PREFIX = "ICAP/1.0";
-    /** ICAP violations found prefix. */
-    private static final String ICAP_VIOLATIONS_PREFIX = "X-Violations-Found:";
-    /** ICAP Encapsulated header. */
-    private static final String ICAP_ENCAPSULATED_PREFIX = "Encapsulated:";
-
-    /** ICAP response body len prefix. */
-    private static final String ICAP_RES_BODY_PREFIX = "res-body";
-    /** ICAP response header len prefix. */
-    private static final String ICAP_RES_HDR_PREFIX = "res-hdr";
-    /** ICAP NULL body prefix. */
-    private static final String ICAP_NULL_BODY_PREFIX = "null-body";
-    /** ICAP header delimiter. */
-    private static final byte[] ICAP_ENDOFHEADER_DELIM = { '\r', '\n', '\r', '\n' };
-
-    /** HTTP status code 200. */
-    private static final int HTTP_STATUS_CODE_200 = 200;
-    /** HTTP status code 201. */
-    private static final int HTTP_STATUS_CODE_201 = 201;
-    /** HTTP status code 500. */
-    private static final int HTTP_STATUS_CODE_500 = 500;
-
-    /** Max buffer size. */
-    private static final int MAX_HEADER_BUFFER = 1024;
-
-    /** Max length of debug string in Exception. */
-    private static final int MAX_DEBUG_STR_LEN = 10;
-
-    /** Base for length parsing. */
-    private static final int HEX_BASE = 16;
-
-    /** String buffer to hold the current parsed ICAP headers. */
-    private StringBuffer currentMessage = new StringBuffer(MAX_HEADER_BUFFER);
-
-    /** Payload length parsed from response. */
-    private int payloadLen;
-    /** Holds the response scanned/cleaned payload. */
-    private byte[] resPayload;
 
     /** ICAP message states - when parsing. */
     enum State {

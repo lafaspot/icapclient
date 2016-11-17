@@ -34,7 +34,7 @@ public class IcapMessageDecoder extends ReplayingDecoder<IcapMessage> {
     @Override
     protected void decode(final ChannelHandlerContext ctx, final ByteBuf buf, final List<Object> out) throws Exception {
 
-        logger.debug("<- replay ri " + buf.readerIndex() + ", wi " + buf.writerIndex() + ", th " + Thread.currentThread().getId(), null);
+        // logger.debug("<- replay ri " + buf.readerIndex() + ", wi " + buf.writerIndex() + ", th " + Thread.currentThread().getId(), null);
         IcapMessage msg = state();
         msg.parse(buf, this);
         if (msg.parsingDone()) {

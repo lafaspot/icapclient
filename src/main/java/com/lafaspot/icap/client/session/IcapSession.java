@@ -36,6 +36,7 @@ public class IcapSession {
     /**
      * Creates a ICAP session.
      *
+     * @param sessionId session identifier used for logging
      * @param bootstrap the client bootstrap object
      * @param uri remote ICAP server URI
      * @param connectTimeout channel connect timeout
@@ -44,9 +45,9 @@ public class IcapSession {
      * @param logManager the LogManager instance
      * @throws IcapException on failure
      */
-    public IcapSession(@Nonnull final Bootstrap bootstrap, @Nonnull final URI uri, final int connectTimeout, final int inactivityTimeout,
-            final boolean reuseSession,
-            @Nonnull final LogManager logManager)
+    public IcapSession(@Nonnull final String sessionId, @Nonnull final Bootstrap bootstrap, @Nonnull final URI uri,
+            final int connectTimeout,
+            final int inactivityTimeout, final boolean reuseSession, @Nonnull final LogManager logManager)
             throws IcapException {
         this.bootstrap = bootstrap;
         this.serverUri = uri;
@@ -55,32 +56,6 @@ public class IcapSession {
         this.count = 0;
         this.createTime = System.currentTimeMillis();
         this.reuseSession = reuseSession;
-        LogContext context = new SessionLogContext("IcapSession-" + uri.toASCIIString(), "");
-        this.logger = logManager.getLogger(context);
-    }
-
-    /**
-     * Creates a ICAP session.
-     *
-     * @param sessionId identifier for the session
-     * @param uri remote ICAP server URI
-     * @param connectTimeout timeout for socket connection
-     * @param inactivityTimeout channel inactivity timeout
-     * @param bootstrap the bootstrap
-     * @param reuseSession if sessions should be reused
-     * @param logManager the LogManager instance
-     * @throws IcapException on failure
-     */
-    public IcapSession(@Nonnull final String sessionId, @Nonnull final URI uri, final int connectTimeout, final int inactivityTimeout,
-            @Nonnull final Bootstrap bootstrap, final boolean reuseSession, @Nonnull final LogManager logManager) throws IcapException {
-        this.serverUri = uri;
-        this.bootstrap = bootstrap;
-        this.connectTimeout = connectTimeout;
-        this.inactivityTimeout = inactivityTimeout;
-        this.count = 0;
-        this.createTime = System.currentTimeMillis();
-        this.reuseSession = reuseSession;
-
         LogContext context = new SessionLogContext("IcapSession-" + uri.toASCIIString(), sessionId);
         this.logger = logManager.getLogger(context);
     }

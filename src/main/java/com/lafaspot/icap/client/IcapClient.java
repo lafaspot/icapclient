@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 import javax.annotation.Nonnull;
@@ -45,7 +46,7 @@ public class IcapClient {
      * @param maxAllowedSessions max number of sessiosn to a given route
      * @param logManager the logger
      */
-    public IcapClient(@Nonnull final Bootstrap bootstrap, @Nonnull final NioEventLoopGroup group, final int connectTimeout,
+    protected IcapClient(@Nonnull final Bootstrap bootstrap, @Nonnull final NioEventLoopGroup group, final int connectTimeout,
             final int inactivityTimeout, final int maxAllowedSessions, @Nonnull final LogManager logManager) {
         try {
             this.bootstrap = bootstrap;
@@ -71,9 +72,10 @@ public class IcapClient {
      * @param inactivityTimeout channel inactivity timeout
      * @param maxAllowedSessions max allowed sessions
      * @param logManager the logger framework
+     * @throws IcapException on failure
      */
     public IcapClient(final int threads, final int connectTimeout, final int inactivityTimeout, final int maxAllowedSessions,
-            @Nonnull final LogManager logManager) {
+            @Nonnull final LogManager logManager) throws IcapException {
 
         try {
             this.bootstrap = new Bootstrap();
@@ -81,6 +83,9 @@ public class IcapClient {
             this.connectTimeout = connectTimeout;
             this.inactivityTimeout = inactivityTimeout;
             this.logManager = logManager;
+            if (maxAllowedSessions > 0) {
+                throw new IcapException(FailureType.CONNECTION_REUSE_NOT_IMPLEMENTED);
+            }
             this.maxAllowedSessions = maxAllowedSessions;
             this.maxAllowedRoutes = MAX_ROUTES;
             bootstrap.group(group).channel(NioSocketChannel.class).handler(new IcapClientInitializer());
@@ -92,34 +97,6 @@ public class IcapClient {
         }
     }
 
-
-    /**
-     * IcapClient constructor.
-     *
-     * @param threads number of threads to be used in the event loop.
-     * @param connectTimeout channel connect timeout
-     * @param inactivityTimeout channel inactivity timeout
-     * @param logManager the logger framework
-     */
-    public IcapClient(final int threads, final int connectTimeout, final int inactivityTimeout,
-            @Nonnull final LogManager logManager) {
-
-        try {
-            this.bootstrap = new Bootstrap();
-            this.group = new NioEventLoopGroup(threads);
-            this.connectTimeout = connectTimeout;
-            this.inactivityTimeout = inactivityTimeout;
-            this.logManager = logManager;
-            this.maxAllowedSessions = MAX_SESSIONS;
-            this.maxAllowedRoutes = MAX_ROUTES;
-            bootstrap.group(group).channel(NioSocketChannel.class).handler(new IcapClientInitializer());
-
-            LogContext context = new SessionLogContext("IcapClient");
-            this.logger = logManager.getLogger(context);
-        } finally {
-            // this.group.shutdownGracefully();
-        }
-    }
 
     /**
      * API to scan a file, will return a future object to be polled for result.
@@ -167,26 +144,10 @@ public class IcapClient {
      * @throws IcapException on failure
      */
     public IcapSession connect(@Nonnull final URI route) throws IcapException {
-        final IcapSession sess = new IcapSession(bootstrap, route, connectTimeout, inactivityTimeout, (0 != maxAllowedSessions), logManager);
+        final IcapSession sess = new IcapSession(String.valueOf(sessionCountRef.incrementAndGet()), bootstrap, route, connectTimeout,
+                inactivityTimeout, (0 != maxAllowedSessions), logManager);
         sess.connect();
         return sess;
-    }
-
-    /**
-     * API to scan a file, will return a future object to be polled for result.
-     *
-     * @param server URI pointing to the Symantec AV scan server
-     * @param connectTimeout socket connect timeout value
-     * @param inactivityTimeout channel inactivity timeout
-     * @param fileName name of the file to be scanned
-     * @param toScanFile byte stream of the file to be scanned
-     * @return the future object
-     * @throws IcapException on failure
-     */
-    public Future<IcapResult> scanFileOld(@Nonnull final URI server, final int connectTimeout, final int inactivityTimeout,
-            @Nonnull final String fileName, @Nonnull final byte[] toScanFile) throws IcapException {
-        return new IcapSession("abc", server, connectTimeout, inactivityTimeout, bootstrap, (0 != maxAllowedSessions), logManager)
-                .scanFile(fileName, toScanFile);
     }
 
     /** The netty bootstrap. */
@@ -224,5 +185,8 @@ public class IcapClient {
 
     /** Max routes allowed. */
     private static final int MAX_ROUTES = 64;
+
+    /** Session counter for logging. */
+    private final AtomicInteger sessionCountRef = new AtomicInteger();
 
 }

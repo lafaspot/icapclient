@@ -117,8 +117,6 @@ public class IcapMessageTest {
         }
         Assert.assertNull(msg.getCause());
         Assert.assertNull(msg.getResult().getDisposition());
-
-        Assert.assertNotNull(msg.getResponseStream());
     }
 
     @Test

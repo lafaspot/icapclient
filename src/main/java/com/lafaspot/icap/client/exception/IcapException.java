@@ -119,7 +119,9 @@ public class IcapException extends Exception {
         /** Invalid response from server. */
         SERVER_ERROR("Invalid response from server."),
         /** Reached max number of routes. */
-        NO_MORE_ROUTES("Reached max routes.");
+        NO_MORE_ROUTES("Reached max routes."),
+        /** conneciton reuse not implemented. */
+        CONNECTION_REUSE_NOT_IMPLEMENTED("Connection reuse not implemented.");
 
         /** The error message. */
         @Nonnull

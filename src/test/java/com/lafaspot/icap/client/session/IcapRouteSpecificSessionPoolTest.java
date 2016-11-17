@@ -36,33 +36,6 @@ public class IcapRouteSpecificSessionPoolTest {
     private static final int CONNECT_TIMEOUT = 500;
     private static final int INACTITIVY_TIMEOUT = 30000;
 
-    @Test
-    public void testLeaseWithValidSessionCreation() throws URISyntaxException, TimeoutException, IcapException {
-
-        final Bootstrap bootstrap = Mockito.mock(Bootstrap.class);
-        final ChannelFuture connectFuture = Mockito.mock(ChannelFuture.class);
-        Mockito.when(bootstrap.group(Mockito.any(NioEventLoopGroup.class))).thenReturn(bootstrap);
-        Mockito.when(bootstrap.channel(NioSocketChannel.class)).thenReturn(bootstrap);
-        Mockito.when(bootstrap.connect(Mockito.anyString(), Mockito.anyInt())).thenReturn(connectFuture);
-        final NioEventLoopGroup group = Mockito.mock(NioEventLoopGroup.class);
-        final LogManager logManager = Mockito.mock(LogManager.class);
-        final Logger logger = Mockito.mock(Logger.class);
-        Mockito.when(logManager.getLogger(Mockito.any(LogContext.class))).thenReturn(logger);
-        final IcapClient client = new IcapClient(bootstrap, group, CONNECT_TIMEOUT, INACTITIVY_TIMEOUT, MAX_SESSIONS, logManager);
-        final URI route = new URI("icap://127.0.0.1:1344");
-
-        Mockito.when(connectFuture.isSuccess()).thenReturn(true);
-        final Channel connectChannel = Mockito.mock(Channel.class);
-        Mockito.when(connectFuture.channel()).thenReturn(connectChannel);
-        final ChannelPipeline channelPipeline = Mockito.mock(ChannelPipeline.class);
-        Mockito.when(connectChannel.pipeline()).thenReturn(channelPipeline);
-        Mockito.when(connectChannel.closeFuture()).thenReturn(connectFuture);
-
-        final IcapRouteSpecificSessionPool pool = new IcapRouteSpecificSessionPool(client, route, MAX_SESSIONS, logger);
-        IcapSession sess = pool.lease(10);
-        Assert.assertNotNull(sess);
-    }
-
     /** Create two sessions first both are in use, available is 0 and used is 2. */
     @Test
     public void testLease2Session() throws URISyntaxException, TimeoutException, IcapException {

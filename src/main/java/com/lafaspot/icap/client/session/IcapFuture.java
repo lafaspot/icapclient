@@ -51,7 +51,7 @@ public class IcapFuture implements Future<IcapResult> {
      */
     @Override
     public boolean cancel(final boolean mayInterruptIfRunning) {
-        // TODO Auto-generated method stub
+        // TODO
         return false;
     }
 
@@ -62,7 +62,7 @@ public class IcapFuture implements Future<IcapResult> {
      */
     @Override
     public boolean isCancelled() {
-        // TODO Auto-generated method stub
+        // TODO
         return false;
     }
 
