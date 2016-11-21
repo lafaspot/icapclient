@@ -13,7 +13,7 @@ jdk:
 - oraclejdk8
 before_install: 
 install:
-- mvn install -P !build-extras -B -V
+- mvn install -Dgpg.skip=true -P !build-extras -B -V
 before_script: 
 script: mvn test -P !build-extras -B
 after_success:
