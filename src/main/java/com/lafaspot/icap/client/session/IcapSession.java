@@ -137,7 +137,9 @@ public class IcapSession {
                 logger.debug("options failed " + msg.getCause(), null);
                 final IcapFuture f = futureRef.get();
                 futureRef.set(null);
-                f.done(msg.getCause());
+                if (null != f) {
+                    f.done(msg.getCause());
+                }
             } else {
                 stateRef.set(IcapSessionState.SCAN);
                 msg.reset();
@@ -155,7 +157,7 @@ public class IcapSession {
                 logger.debug(" SCAN state - failed " + msg.getCause(), null);
                 final IcapFuture f = futureRef.get();
                 futureRef.set(null);
-                f.done(msg.getCause());
+                    f.done(msg.getCause());
             } else {
                 logger.debug(" SCAN state - success " + msg.getResult(), null);
                 final IcapFuture f = futureRef.get();
@@ -185,7 +187,9 @@ public class IcapSession {
         if (null != futureRef.get()) {
             final IcapFuture f = futureRef.get();
             futureRef.set(null);
-            f.done(new IcapException("inactivity timeout"));
+            if (null != f) {
+                f.done(new IcapException("inactivity timeout"));
+            }
         }
     }
 
@@ -202,7 +206,9 @@ public class IcapSession {
         if (futureRef.get() != null) {
             final IcapFuture f = futureRef.get();
             futureRef.set(null);
-            f.done(new IcapException("channel disconnected"));
+            if (null != f) {
+                f.done(new IcapException("channel disconnected"));
+            }
         }
     }
 
