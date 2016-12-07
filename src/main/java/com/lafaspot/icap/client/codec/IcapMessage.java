@@ -257,7 +257,7 @@ public class IcapMessage {
                 try {
                     payloadLen = Integer.parseInt(lengthStr, HEX_BASE);
                 } catch (NumberFormatException e) {
-                    final String errorLenStr = (lengthStr.length() > MAX_DEBUG_STR_LEN ? lengthStr.substring(0, 0) : lengthStr);
+                    final String errorLenStr = (lengthStr.length() > MAX_DEBUG_STR_LEN ? lengthStr.substring(0, MAX_DEBUG_STR_LEN) : lengthStr);
                     throw new IcapException(IcapException.FailureType.PARSE_ERROR, Arrays.asList("payloadLen", errorLenStr));
                 }
 
