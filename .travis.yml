@@ -12,8 +12,7 @@ env:
 jdk:
 - oraclejdk8
 before_install:
-- openssl aes-256-cbc -K $encrypted_13d7419eac8d_key -iv $encrypted_13d7419eac8d_iv
-  -in codesigning.asc.enc -out cd/codesigning.asc -d
+
 install:
 - mvn install -Dgpg.skip=true -P !build-extras -B -V
 before_script: 
