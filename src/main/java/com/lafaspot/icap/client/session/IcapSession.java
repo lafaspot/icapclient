@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nonnull;
 
 import com.lafaspot.icap.client.IcapResult;
+import com.lafaspot.icap.client.IcapResult.Disposition;
 import com.lafaspot.icap.client.codec.IcapMessage;
 import com.lafaspot.icap.client.codec.IcapMessageDecoder;
 import com.lafaspot.icap.client.codec.IcapOptions;
@@ -110,6 +111,17 @@ public class IcapSession {
         }
         this.filename = filename;
         this.fileToScan = fileToScan;
+
+        if (fileToScan.length == 0) {
+            IcapFuture icapFuture = new IcapFuture(this);
+            IcapResult icapResult = new IcapResult();
+            icapResult.setCleanedBytes(fileToScan);
+            icapResult.setDisposition(Disposition.CLEAN);
+            icapResult.setNumViolations(0);
+            icapFuture.done(icapResult);
+            futureRef.set(icapFuture);
+            return futureRef.get();
+        }
 
         try {
             logger.debug("connected, sending", null);
