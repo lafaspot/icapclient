@@ -16,6 +16,7 @@ import org.testng.annotations.Test;
 
 import com.lafaspot.icap.client.IcapResult;
 import com.lafaspot.icap.client.IcapResult.Disposition;
+import com.lafaspot.icap.client.codec.IcapMessage;
 import com.lafaspot.icap.client.codec.IcapOptions;
 import com.lafaspot.icap.client.exception.IcapException;
 import com.lafaspot.logfast.logging.LogContext;
@@ -128,7 +129,9 @@ public class IcapSessionTest {
         client.connect();
         Future<IcapResult> future = client.scanFile(filename, buf);
         Assert.assertNotNull(future);
-        IcapResult r = future.get();
+        Assert.assertTrue(future.isDone());
+        final IcapResult r = future.get();
+        Assert.assertNotNull(r);
         Assert.assertEquals(r.getNumViolations(), 0);
         Assert.assertEquals(r.getCleanedBytes().length, 0);
         Assert.assertEquals(r.getDisposition(), Disposition.CLEAN);
@@ -172,5 +175,29 @@ public class IcapSessionTest {
         client.connect();
         Future<IcapResult> future = client.scanFile(filename, copiedBuf);
         Assert.assertNotNull(future);
+        Assert.assertFalse(future.isDone());
+
+        // Mocking options response
+        final IcapMessage mockOptionsIcapMessage = Mockito.mock(IcapMessage.class);
+        // Mocking scan response
+        final IcapMessage mockScanIcapMessage = Mockito.mock(IcapMessage.class);
+        IcapResult mockScanIcapResult = new IcapResult();
+        mockScanIcapResult.setCleanedBytes(buf);
+        mockScanIcapResult.setDisposition(Disposition.CLEAN);
+        mockScanIcapResult.setNumViolations(0);
+        Mockito.when(mockScanIcapMessage.getResult()).thenReturn(mockScanIcapResult);
+
+        // processResponse when state is OPTIONS
+        client.processResponse(mockOptionsIcapMessage);
+
+        // processResponse when state is SCAN
+        client.processResponse(mockScanIcapMessage);
+
+        Assert.assertTrue(future.isDone());
+        final IcapResult r = future.get();
+        Assert.assertNotNull(r);
+        Assert.assertEquals(r.getNumViolations(), 0);
+        Assert.assertEquals(r.getCleanedBytes().length, fileLen);
+        Assert.assertEquals(r.getDisposition(), Disposition.CLEAN);
     }
 }

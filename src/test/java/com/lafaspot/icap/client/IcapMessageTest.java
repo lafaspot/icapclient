@@ -35,7 +35,7 @@ public class IcapMessageTest {
     public void init() {
         logManager = new LogManager(Level.DEBUG, 5);
         logManager.setLegacy(true);
-        logger = logManager.getLogger(new LogContext(IcapClientTest.class.getName()) {
+        logger = logManager.getLogger(new LogContext(IcapClientIT.class.getName()) {
         });
     }
 
