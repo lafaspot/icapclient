@@ -55,9 +55,8 @@ public class IcapClientTest {
         client = new IcapClient(2, CONNECT_TIMEOUT_MILLIS, INACTIVITY_TIMEOUT_MILLIS, 0, logManager);
     }
 
-    @Test(enabled = false, expectedExceptions = IcapException.class)
-    public void scanBadFile() throws IcapException, IOException, InterruptedException, ExecutionException {
-
+    @Test(enabled = false, expectedExceptions = ExecutionException.class, expectedExceptionsMessageRegExp = "com.lafaspot.icap.client.exception.IcapException: Invalid response from server.")
+    public void scanBadFile() throws IcapException, IOException, InterruptedException, ExecutionException, NoSuchAlgorithmException {
         final String filename = "badAvScanDoc.doc";
         InputStream in = getClass().getClassLoader().getResourceAsStream("badAvScanDoc.doc");
         byte buf[] = new byte[8192];
@@ -72,8 +71,7 @@ public class IcapClientTest {
 
         URI uri = URI.create("icap://localhost:1344");
         java.util.concurrent.Future<IcapResult> future = client.scanFile(uri, filename, copiedBuf);
-        IcapResult r = future.get();
-        Assert.assertEquals(r.getNumViolations(), 0);
+        future.get();
     }
 
     @Test(enabled = false)
@@ -106,7 +104,9 @@ public class IcapClientTest {
         }
         Assert.assertEquals(r.getCleanedBytes(), buf);
 
-        // Thread.sleep(3600000);
+        String inputChecksum = shaChecksum(buf);
+        String outputChecksum = shaChecksum(r.getCleanedBytes());
+        Assert.assertEquals(inputChecksum, outputChecksum);
     }
 
     @Test(enabled = false)
@@ -153,6 +153,10 @@ public class IcapClientTest {
                     Assert.assertEquals(r.getNumViolations(), 0);
                     Assert.assertEquals(r.getCleanedBytes().length, fileLen);
                     Assert.assertEquals(r.getCleanedBytes(), buf);
+                    
+                    String inputChecksum = shaChecksum(copiedBuf);
+                    String outputChecksum = shaChecksum(r.getCleanedBytes());
+                    Assert.assertEquals(inputChecksum, outputChecksum);
                 }
             }
         }
@@ -180,10 +184,13 @@ public class IcapClientTest {
         java.util.concurrent.Future<IcapResult> future = client.scanFile(uri, filename, buf);
         IcapResult r = future.get();
         Assert.assertEquals(r.getNumViolations(), 0);
+        String inputChecksum = shaChecksum(buf);
+        String outputChecksum = shaChecksum(r.getCleanedBytes());
+        Assert.assertEquals(inputChecksum, outputChecksum);
     }
 
     @Test(enabled = false)
-    public void scanTestFile() throws IcapException, IOException, InterruptedException, ExecutionException {
+    public void scanTestFile() throws IcapException, IOException, InterruptedException, ExecutionException, NoSuchAlgorithmException {
 
         final String filename = "test.log";
         InputStream in = getClass().getClassLoader().getResourceAsStream(filename);
@@ -212,10 +219,14 @@ public class IcapClientTest {
             ostream.close();
         }
         Assert.assertEquals(r.getCleanedBytes(), buf);
+        
+        String inputChecksum = shaChecksum(buf);
+        String outputChecksum = shaChecksum(r.getCleanedBytes());
+        Assert.assertEquals(inputChecksum, outputChecksum);
     }
 
     @Test(enabled = false)
-    public void scanTestFileTwice() throws IcapException, IOException, InterruptedException, ExecutionException {
+    public void scanTestFileTwice() throws IcapException, IOException, InterruptedException, ExecutionException, NoSuchAlgorithmException {
 
         final String filename = "test.log";
         // final String filename = "somelog.log";
@@ -238,6 +249,10 @@ public class IcapClientTest {
         future = client.scanFile(uri, filename, copiedBuf);
         r = future.get();
         Assert.assertEquals(r.getNumViolations(), 0);
+        
+        String inputChecksum = shaChecksum(copiedBuf);
+        String outputChecksum = shaChecksum(r.getCleanedBytes());
+        Assert.assertEquals(inputChecksum, outputChecksum);
     }
 
     @Test(enabled = false)
