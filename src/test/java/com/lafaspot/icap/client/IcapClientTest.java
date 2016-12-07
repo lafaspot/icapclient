@@ -27,6 +27,7 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.lafaspot.icap.client.IcapResult.Disposition;
 import com.lafaspot.icap.client.exception.IcapException;
 import com.lafaspot.icap.client.session.IcapRouteSpecificSessionPool;
 import com.lafaspot.icap.client.session.IcapSession;
@@ -302,5 +303,18 @@ public class IcapClientTest {
         final IcapRouteSpecificSessionPool pool = new IcapRouteSpecificSessionPool(client, route, MAX_SESSIONS, logger);
         IcapSession sess = pool.lease(10);
         Assert.assertNotNull(sess);
+    }
+
+    @Test(enabled = false)
+    public void testScanFileWithZeroSize() throws IcapException, IOException, InterruptedException, ExecutionException, NoSuchAlgorithmException {
+        final String filename = "emptyFile.txt";
+        byte buf[] = new byte[0];
+
+        URI uri = URI.create("icap://localhost:1344");
+        java.util.concurrent.Future<IcapResult> future = client.scanFile(uri, filename, buf);
+        IcapResult r = future.get();
+        Assert.assertEquals(r.getNumViolations(), 0);
+        Assert.assertEquals(r.getCleanedBytes().length, 0);
+        Assert.assertEquals(r.getDisposition(), Disposition.CLEAN);
     }
 }
