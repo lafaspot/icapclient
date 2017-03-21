@@ -3,12 +3,7 @@
  */
 package com.lafaspot.icap.client.session;
 
-import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelOption;
-import io.netty.util.concurrent.GenericFutureListener;
-
+import java.net.SocketAddress;
 import java.net.URI;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
@@ -25,6 +20,12 @@ import com.lafaspot.icap.client.exception.IcapException;
 import com.lafaspot.logfast.logging.LogContext;
 import com.lafaspot.logfast.logging.LogManager;
 import com.lafaspot.logfast.logging.Logger;
+
+import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelOption;
+import io.netty.util.concurrent.GenericFutureListener;
 
 /**
  * IcapSession - identifies a session that represents one scan request.
@@ -169,7 +170,7 @@ public class IcapSession {
                 logger.debug(" SCAN state - failed " + msg.getCause(), null);
                 final IcapFuture f = futureRef.get();
                 futureRef.set(null);
-                    f.done(msg.getCause());
+                f.done(msg.getCause());
             } else {
                 logger.debug(" SCAN state - success " + msg.getResult(), null);
                 final IcapFuture f = futureRef.get();
@@ -210,8 +211,11 @@ public class IcapSession {
      */
     public void onDisconnect() {
         logger.debug("**channel disconnected (not-ignored)** TH " + Thread.currentThread().getId(), null);
+        final IcapSessionState prevState = stateRef.get();
         stateRef.set(IcapSessionState.DISCONNECTED);
+        SocketAddress socketAddress = null;
         if (null != this.sessionChannel) {
+            socketAddress = this.sessionChannel.localAddress();
             this.sessionChannel.close();
         }
         this.sessionChannel = null;
@@ -219,7 +223,7 @@ public class IcapSession {
             final IcapFuture f = futureRef.get();
             futureRef.set(null);
             if (null != f) {
-                f.done(new IcapException("channel disconnected"));
+                f.done(new IcapException("channel disconnected while in : " + prevState + "state using address " + socketAddress));
             }
         }
     }
@@ -340,5 +344,4 @@ public class IcapSession {
         /** scan request sent. */
         SCAN
     };
-
 }
