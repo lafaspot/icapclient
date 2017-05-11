@@ -84,7 +84,10 @@ public class IcapMessage {
     private static final String ICAP_NULL_BODY_PREFIX = "null-body";
 
     /** ICAP header delimiter. */
-    private static final byte[] ICAP_ENDOFHEADER_DELIM = { '\r', '\n', '\r', '\n' };
+    private static final byte[] ICAP_ENDOFHEADER_DELIM_HALF = { '\r', '\n' };
+
+    /** ICAP header delimiter. */
+    private static final byte[] ICAP_ENDOFHEADER_DELIM_FULL = { '\r', '\n', '\r', '\n' };
 
     /** HTTP status code 200. */
     private static final int HTTP_STATUS_CODE_200 = 200;
@@ -149,7 +152,7 @@ public class IcapMessage {
             // logger.debug("<- parse in - " + state + " - " + this.hashCode(), null);
             switch (state) {
             case PARSE_ICAP_MESSAGE: {
-                if (!parseForHeader(buf, ICAP_ENDOFHEADER_DELIM)) {
+                if (!parseForHeader(buf, ICAP_ENDOFHEADER_DELIM_FULL)) {
                     return;
                 }
                 String header = currentMessage.toString();
@@ -220,7 +223,7 @@ public class IcapMessage {
             }
 
             case PARSE_RES_HEADER: {
-                if (!parseForHeader(buf, ICAP_ENDOFHEADER_DELIM)) {
+                if (!parseForHeader(buf, ICAP_ENDOFHEADER_DELIM_FULL)) {
                     return;
                 }
 
@@ -248,7 +251,7 @@ public class IcapMessage {
             }
 
             case PARSE_RES_PAYLOAD_LENGTH: {
-                if (!parseForHeader(buf, dec, ICAP_ENDOFHEADER_DELIM)) {
+                if (!parseForHeader(buf, dec, ICAP_ENDOFHEADER_DELIM_HALF)) {
                     return;
                 }
                 final String lengthStr = currentMessage.toString().trim();
@@ -464,17 +467,15 @@ public class IcapMessage {
             throw new IcapException(IcapException.FailureType.PARSE_ERROR);
         }
         int eohIdx = 0;
-        // full delim bytes CRLFCRLF
-        final int fullEohLen = delim.length;
-        // half delim CRLF
-        final int halfEohLen = fullEohLen / 2;
+        // delim bytes CRLF
+        final int eohLen = delim.length;
         for (int idx = buf.readerIndex(); idx < buf.writerIndex(); idx++) {
             final char msg = (char) buf.getByte(idx);
             if (msg == delim[eohIdx]) {
                 eohIdx++;
                 if (eohIdx == (delim.length)) {
-                    // remove the last (fullEohLen -1) bytes as the last byte is yet to be added
-                    currentMessage.setLength(currentMessage.length() - (fullEohLen - 1));
+                    // remove the last (eohLen -1) bytes as the last byte is yet to be added
+                    currentMessage.setLength(currentMessage.length() - (eohLen - 1));
                     // next byte to be read is idx+1
                     buf.readerIndex(idx + 1);
                     return true;
@@ -483,17 +484,8 @@ public class IcapMessage {
                     currentMessage.append(msg);
                 }
             } else {
-                if (halfEohLen == eohIdx) {
-                    // remove last 2 bytes, the 0xA and 0xD
-                    currentMessage.setLength(currentMessage.length() - halfEohLen);
-
-                    // don't increase reader index to idx+1 as we have already read the next byte
-                    buf.readerIndex(idx);
-                    return true;
-                } else {
-                    currentMessage.append(msg);
-                    eohIdx = 0;
-                }
+                currentMessage.append(msg);
+                eohIdx = 0;
             }
         }
 
