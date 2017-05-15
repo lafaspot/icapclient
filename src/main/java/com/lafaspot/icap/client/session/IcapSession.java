@@ -341,5 +341,4 @@ public class IcapSession {
         /** scan request sent. */
         SCAN
     };
-
 }
