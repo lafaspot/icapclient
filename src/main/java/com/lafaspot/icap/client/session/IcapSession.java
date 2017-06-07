@@ -168,14 +168,14 @@ public class IcapSession {
             if (msg.getCause() != null) {
                 logger.debug(" SCAN state - failed " + msg.getCause(), null);
                 final IcapFuture f = futureRef.get();
-                if (f != null){
+                if (f != null) {
                     futureRef.set(null);
                     f.done(msg.getCause());
                 }
             } else {
                 logger.debug(" SCAN state - success " + msg.getResult(), null);
                 final IcapFuture f = futureRef.get();
-                if (f != null){
+                if (f != null) {
                     futureRef.set(null);
                     f.done(msg.getResult());
                 }
