@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.github.krdev.icapclient</groupId>
     <artifactId>icapclient</artifactId>
-    <version>0.0.12</version>
+    <version>0.0.13</version>
     <name>icapclient</name>
     <packaging>jar</packaging>
     <url>https://github.com/lafaspot/icapclient</url>
