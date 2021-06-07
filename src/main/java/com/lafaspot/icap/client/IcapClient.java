@@ -145,9 +145,10 @@ public class IcapClient {
      * @return the future object
      * @throws IcapException on failure
      */
-    public Future<IcapResult> scanFileWithoutSessionReuse(@Nonnull final URI server, @Nonnull final String filename, @Nonnull final byte[] toScanFile)
+    public Future<IcapResult> scanFileWithoutSessionReuse(@Nonnull final URI server, @Nonnull final String filename, @Nonnull final byte[] toScanFile,
+            @Nonnull final IcapRequestProducer icapRequestProducer, @Nonnull final IcapResponseConsumer icapResponseConsumer)
             throws IcapException {
-        IcapSession sess = connect(server);
+        IcapSession sess = connect(server, icapRequestProducer, icapResponseConsumer);
         return sess.scanFile(filename, toScanFile);
     }
 
@@ -158,9 +159,9 @@ public class IcapClient {
      * @return IcapSession
      * @throws IcapException on failure
      */
-    public IcapSession connect(@Nonnull final URI route) throws IcapException {
+    public IcapSession connect(@Nonnull final URI route, @Nonnull final IcapRequestProducer requestProducer, @Nonnull final IcapResponseConsumer responseConsumer) throws IcapException {
         final IcapSession sess = new IcapSession(String.valueOf(sessionCountRef.incrementAndGet()), bootstrap, route, connectTimeout,
-                inactivityTimeout, (0 != maxAllowedSessions), logManager);
+                inactivityTimeout, (0 != maxAllowedSessions), logManager, requestProducer, responseConsumer);
         sess.connect();
         return sess;
     }

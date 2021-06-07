@@ -11,7 +11,7 @@ import java.net.URI;
  * @author kraman
  *
  */
-public class IcapOptions {
+public class IcapOptions extends IcapRequest{
 
     /** The actual ICAP OPTIONS message. */
     private final String message;
@@ -22,10 +22,11 @@ public class IcapOptions {
      * @param uri Symantec server uri
      */
     public IcapOptions(final URI uri) {
+        super(uri);
         final StringBuffer buf = new StringBuffer();
         buf.append("OPTIONS icap://");
         buf.append(uri.getHost());
-        buf.append("/SYMCScanResp-AV ICAP/1.0\r\n");
+        buf.append("/").append(uri.getPath()).append(" ICAP/1.0\r\n");
         buf.append("Host:");
         buf.append(uri.getHost());
         buf.append("\r\n");

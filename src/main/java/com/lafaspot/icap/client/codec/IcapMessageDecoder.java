@@ -1,5 +1,7 @@
 package com.lafaspot.icap.client.codec;
 
+import com.lafaspot.icap.client.IcapResponseConsumer;
+import com.lafaspot.icap.client.session.IcapSession;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ReplayingDecoder;
@@ -21,14 +23,17 @@ public class IcapMessageDecoder extends ReplayingDecoder<IcapMessage> {
     /** The logger object. */
     private final Logger logger;
 
+    private IcapResponseConsumer icapResponseConsumer;
+
     /**
      * Constructor for the decoder.
      *
      * @param logger the logger object
      */
-    public IcapMessageDecoder(@Nonnull final Logger logger) {
+    public IcapMessageDecoder(@Nonnull final Logger logger, @Nonnull final IcapResponseConsumer icapResponseConsumer) {
         super(new IcapMessage(logger));
         this.logger = logger;
+        this.icapResponseConsumer = icapResponseConsumer;
     }
 
     @Override
@@ -43,5 +48,9 @@ public class IcapMessageDecoder extends ReplayingDecoder<IcapMessage> {
             state(newMsg);
         }
 
+    }
+
+    public IcapResponseConsumer getIcapResponseConsumer() {
+        return icapResponseConsumer;
     }
 }
