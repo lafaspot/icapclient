@@ -1,25 +1,29 @@
-package com.lafaspot.icap.client;
+package com.lafaspot.icap.client.impl;
 
+import com.lafaspot.icap.client.AbstractIcapResponseConsumer;
+import com.lafaspot.icap.client.IcapResult;
 import com.lafaspot.icap.client.codec.IcapMessage;
 import com.lafaspot.icap.client.exception.IcapException;
 
 import javax.annotation.Nonnull;
 import java.util.Arrays;
 
-public class SymantecIcapRespConsumer extends AbstractIcapResponseConsumer {
+/**
+ * @author nimmyr
+ * A  Default ICAP response consumer for any antivirus engine.
+ */
+public class DefaultIcapRespConsumer extends AbstractIcapResponseConsumer {
 
     @Override
-    public void responseReceived(int status, @Nonnull final IcapMessage icapMessage) throws IcapException {
+    public IcapResult responseReceived(final int status, @Nonnull final IcapMessage icapMessage) throws IcapException {
         switch (status) {
-        case HTTP_STATUS_CODE_201:
-            handleIcap200Ok(icapMessage.getIcapHeaders(), icapMessage.getResult());
-            return;
         case HTTP_STATUS_CODE_200:
-            handleIcap201Ok(icapMessage.getIcapHeaders(), icapMessage.getResult());
-            return;
+            return handleIcap200Ok(icapMessage.getIcapHeaders());
+        case HTTP_STATUS_CODE_201:
+            return handleIcap201Ok(icapMessage.getIcapHeaders());
         case HTTP_STATUS_CODE_500:
-            return;
         default:
+            return new IcapResult();
         }
     }
 
@@ -29,8 +33,9 @@ public class SymantecIcapRespConsumer extends AbstractIcapResponseConsumer {
      * @param headers ICAP headers
      * @throws IcapException on failure
      */
-    private void handleIcap200Ok(@Nonnull final String[] headers, @Nonnull final IcapResult result) throws IcapException {
+    private IcapResult handleIcap200Ok(@Nonnull final String[] headers) throws IcapException {
         int index = 1;
+        IcapResult result = new IcapResult();
         for (; index < headers.length; index++) {
             if (headers[index].startsWith(ICAP_ENCAPSULATED_PREFIX)) {
                 int j = headers[index].indexOf(ICAP_RES_BODY_PREFIX);
@@ -51,10 +56,11 @@ public class SymantecIcapRespConsumer extends AbstractIcapResponseConsumer {
 
                 } else if (headers[index].indexOf(ICAP_NULL_BODY_PREFIX) != -1) {
                     // done
-                    return;
+                    return result;
                 }
             }
         }
+        return result;
     }
 
     /**
@@ -63,10 +69,11 @@ public class SymantecIcapRespConsumer extends AbstractIcapResponseConsumer {
      * @param headers ICAP headers
      * @throws IcapException on failure
      */
-    private void handleIcap201Ok(@Nonnull final String[] headers, @Nonnull final IcapResult result) throws IcapException {
+    private IcapResult handleIcap201Ok(@Nonnull final String[] headers) throws IcapException {
 
         // skip first status line
         int index = 1;
+        IcapResult result = new IcapResult();
         for (; index < headers.length; index++) {
             if (headers[index].startsWith(ICAP_VIOLATIONS_PREFIX)) {
                 break;
@@ -108,6 +115,7 @@ public class SymantecIcapRespConsumer extends AbstractIcapResponseConsumer {
         } else {
             throw new IcapException(IcapException.FailureType.PARSE_ERROR);
         }
+        return result;
     }
 
 

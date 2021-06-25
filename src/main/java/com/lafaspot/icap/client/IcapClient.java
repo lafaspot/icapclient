@@ -3,6 +3,8 @@
  */
 package com.lafaspot.icap.client;
 
+import com.lafaspot.icap.client.impl.DefaultIcapRequestProducer;
+import com.lafaspot.icap.client.impl.DefaultIcapRespConsumer;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -32,6 +34,7 @@ import com.lafaspot.logfast.logging.Logger;
  * IcapClient - used to communicate with Symantec AV server using ICAP protocol.
  *
  * @author kraman
+ * @author nimmyr
  *
  */
 public class IcapClient {
@@ -97,7 +100,6 @@ public class IcapClient {
         }
     }
 
-
     /**
      * API to scan a file, will return a future object to be polled for result.
      *
@@ -108,6 +110,25 @@ public class IcapClient {
      * @throws IcapException on failure
      */
     public Future<IcapResult> scanFile(@Nonnull final URI server, @Nonnull final String filename, @Nonnull final byte[] toScanFile)
+            throws IcapException {
+        return this.scanFile(server, filename, toScanFile, new DefaultIcapRequestProducer(server, filename, toScanFile),
+                new DefaultIcapRespConsumer());
+    }
+
+
+    /**
+     * API to scan a file, will return a future object to be polled for result.
+     *
+     * @param server URI pointing to the Symantec AV scan server
+     * @param filename name of the file to be scanned
+     * @param toScanFile byte stream of the file to be scanned
+     * @param icapRequestProducer An ICAP request producer
+     * @param icapResponseConsumer An ICAP response consumer
+     * @return the future object
+     * @throws IcapException on failure
+     */
+    public Future<IcapResult> scanFile(@Nonnull final URI server, @Nonnull final String filename, @Nonnull final byte[] toScanFile,
+            @Nonnull final IcapRequestProducer icapRequestProducer, @Nonnull final IcapResponseConsumer icapResponseConsumer)
             throws IcapException {
 
         try {
@@ -124,7 +145,7 @@ public class IcapClient {
                     poolMap.put(server, pool);
                 }
 
-                IcapSession sess = pool.lease(connectTimeout);
+                IcapSession sess = pool.lease(connectTimeout, icapRequestProducer, icapResponseConsumer);
                 return sess.scanFile(filename, toScanFile);
             } finally {
                 lock.unlock();
@@ -145,6 +166,23 @@ public class IcapClient {
      * @return the future object
      * @throws IcapException on failure
      */
+    public Future<IcapResult> scanFileWithoutSessionReuse(@Nonnull final URI server, @Nonnull final String filename, @Nonnull final byte[] toScanFile)
+            throws IcapException {
+        IcapSession sess = connect(server, new DefaultIcapRequestProducer(server, filename, toScanFile), new DefaultIcapRespConsumer());
+        return sess.scanFile(filename, toScanFile);
+    }
+
+    /**
+     * API to scan a file (without session pool), will return a future object to be polled for result.
+     *
+     * @param server URI pointing to the Symantec AV scan server
+     * @param filename name of the file to be scanned
+     * @param toScanFile byte stream of the file to be scanned
+     * @param icapRequestProducer An ICAP request producer
+     * @param icapResponseConsumer An ICAP response consumer
+     * @return the future object
+     * @throws IcapException on failure
+     */
     public Future<IcapResult> scanFileWithoutSessionReuse(@Nonnull final URI server, @Nonnull final String filename, @Nonnull final byte[] toScanFile,
             @Nonnull final IcapRequestProducer icapRequestProducer, @Nonnull final IcapResponseConsumer icapResponseConsumer)
             throws IcapException {
@@ -156,12 +194,15 @@ public class IcapClient {
      * Create a new IcapSession and connect to server.
      *
      * @param route server URI
+     * @param icapRequestProducer An ICAP request producer
+     * @param icapResponseConsumer An ICAP response consumer
      * @return IcapSession
      * @throws IcapException on failure
      */
-    public IcapSession connect(@Nonnull final URI route, @Nonnull final IcapRequestProducer requestProducer, @Nonnull final IcapResponseConsumer responseConsumer) throws IcapException {
+    public IcapSession connect(@Nonnull final URI route, @Nonnull final IcapRequestProducer icapRequestProducer,
+            @Nonnull final IcapResponseConsumer icapResponseConsumer) throws IcapException {
         final IcapSession sess = new IcapSession(String.valueOf(sessionCountRef.incrementAndGet()), bootstrap, route, connectTimeout,
-                inactivityTimeout, (0 != maxAllowedSessions), logManager, requestProducer, responseConsumer);
+                inactivityTimeout, (0 != maxAllowedSessions), logManager, icapRequestProducer, icapResponseConsumer);
         sess.connect();
         return sess;
     }

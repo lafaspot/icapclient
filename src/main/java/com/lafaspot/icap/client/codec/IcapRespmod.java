@@ -3,36 +3,40 @@
  */
 package com.lafaspot.icap.client.codec;
 
-import java.net.URI;
-
 import javax.annotation.Nonnull;
+import java.net.URI;
 
 /**
  * Command to send RESPMOD request to AV scan server.
  *
  * @author kraman
+ * @author nimmyr
  *
  */
-public class IcapRespmod extends IcapRequest{
+public class IcapRespmod extends IcapRequest {
 
-
-    /** The ICAP message. */
-    private final String icapMessage;
-
+    /** Bytes denoting the end of the message. */
+    private static final byte[] END_OF_MESSAGE = { '\r', '\n' };
     /** Bytes to be scanned. */
     protected final byte[] inBuffer;
+    /** The ICAP message. */
+    private final String respModString;
+    /** Bytes denoting the end of the message. */
+    private final byte[] trailerBytes;
 
     /**
      * Constructs a ICAP RESPMODE command.
      *
      * @param uri symantec server uri
      * @param inBuffer bytes to be scanned
+     * @param respModString  resp mod message string
+     * @param trailerBytes trailer bytes
      */
-    public IcapRespmod(@Nonnull final URI uri, @Nonnull final String icapMessage, final byte[] inBuffer, final byte[] trailerBytes) {
+    public IcapRespmod(@Nonnull final URI uri, @Nonnull final String respModString, final byte[] inBuffer, final byte[] trailerBytes) {
 
         // buf.append("\r\n");
         super(uri);
-        this.icapMessage = icapMessage;
+        this.respModString = respModString;
         this.inBuffer = inBuffer;
         this.trailerBytes = trailerBytes;
     }
@@ -42,8 +46,8 @@ public class IcapRespmod extends IcapRequest{
      *
      * @return ICAP RESPMOD message
      */
-    public String getIcapMessage() {
-        return icapMessage;
+    public String getRespModString() {
+        return respModString;
     }
 
     /**
@@ -55,9 +59,6 @@ public class IcapRespmod extends IcapRequest{
         return inBuffer;
     }
 
-    /** Bytes denoting the end of the message. */
-    private byte[] trailerBytes ;
-
     /**
      * Returns the trailer bytes.
      *
@@ -66,9 +67,6 @@ public class IcapRespmod extends IcapRequest{
     public byte[] getTrailerBytes() {
         return trailerBytes;
     }
-
-    /** Bytes denoting the end of the message. */
-    private static final byte[] END_OF_MESSAGE = { '\r', '\n' };
 
     /**
      * Returns the trailer bytes.

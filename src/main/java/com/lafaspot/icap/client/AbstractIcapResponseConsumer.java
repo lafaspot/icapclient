@@ -1,6 +1,10 @@
 package com.lafaspot.icap.client;
 
-public abstract class AbstractIcapResponseConsumer implements IcapResponseConsumer{
+/**
+ * @author nimmyr
+ * A Generic ICAP response consumer that is used for parsing icap response message
+ */
+public abstract class AbstractIcapResponseConsumer implements IcapResponseConsumer {
 
     /** HTTP status code 200. */
     protected static final int HTTP_STATUS_CODE_200 = 200;

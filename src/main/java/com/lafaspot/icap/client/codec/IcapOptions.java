@@ -3,30 +3,33 @@
  */
 package com.lafaspot.icap.client.codec;
 
+import javax.annotation.Nonnull;
 import java.net.URI;
 
 /**
  * Defines the ICAP OPTIONS command.
- * 
+ *
  * @author kraman
+ * @author nimmyr
  *
  */
-public class IcapOptions extends IcapRequest{
+public class IcapOptions extends IcapRequest {
 
     /** The actual ICAP OPTIONS message. */
     private final String message;
 
     /**
      * Constructor to build an ICAP OPTIONS command.
-     * 
+     *
      * @param uri Symantec server uri
+     * @param serviceName service name
      */
-    public IcapOptions(final URI uri) {
+    public IcapOptions(@Nonnull final URI uri, @Nonnull final String serviceName) {
         super(uri);
         final StringBuffer buf = new StringBuffer();
         buf.append("OPTIONS icap://");
         buf.append(uri.getHost());
-        buf.append("/").append(uri.getPath()).append(" ICAP/1.0\r\n");
+        buf.append("/").append(serviceName).append(" ICAP/1.0\r\n");
         buf.append("Host:");
         buf.append(uri.getHost());
         buf.append("\r\n");
@@ -40,7 +43,7 @@ public class IcapOptions extends IcapRequest{
 
     /**
      * Returns the String representation of the message.
-     * 
+     *
      * @return ICAP OPTIONS message as string
      */
     public String getMessage() {

@@ -3,15 +3,11 @@
  */
 package com.lafaspot.icap.client.codec;
 
+import com.lafaspot.icap.client.IcapResult;
+import com.lafaspot.icap.client.exception.IcapException;
+import com.lafaspot.icap.client.exception.IcapException.FailureType;
+import com.lafaspot.logfast.logging.Logger;
 import io.netty.buffer.ByteBuf;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.regex.Pattern;
-
-import javax.annotation.Nonnull;
-
 import org.apache.http.Header;
 import org.apache.http.HeaderElement;
 import org.apache.http.StatusLine;
@@ -21,16 +17,17 @@ import org.apache.http.message.LineParser;
 import org.apache.http.message.ParserCursor;
 import org.apache.http.util.CharArrayBuffer;
 
-import com.lafaspot.icap.client.IcapResult;
-import com.lafaspot.icap.client.IcapResult.Disposition;
-import com.lafaspot.icap.client.exception.IcapException;
-import com.lafaspot.icap.client.exception.IcapException.FailureType;
-import com.lafaspot.logfast.logging.Logger;
+import javax.annotation.Nonnull;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * Base IcapMessage object.
  *
  * @author kraman
+ * @author nimmyr
  *
  */
 public class IcapMessage {
@@ -161,7 +158,7 @@ public class IcapMessage {
                 String[] headers = parseHeader(header);
 
                 // now handle the ICAP message
-                if (!handleIcapMessage(headers,dec)) {
+                if (!handleIcapMessage(headers, dec)) {
                     state = State.PARSE_DONE;
 
                     // reset the readIndex to avoid replay
@@ -356,6 +353,7 @@ public class IcapMessage {
      * Parse ICAP message.
      *
      * @param headers headers to be parsed
+     * @param messageDecoder message decoder
      * @return true if response was successful
      * @throws IcapException on failure
      */
@@ -373,10 +371,13 @@ public class IcapMessage {
                     throw new IcapException(IcapException.FailureType.PARSE_ERROR, Arrays.asList("icapStatusHdr", errorStatusStr));
                 }
                 // logger.debug("-- icap status code " + status, null);
-                messageDecoder.getIcapResponseConsumer().responseReceived(status,this);
+                IcapResult decodedResult = messageDecoder.getIcapResponseConsumer().responseReceived(status, this);
+                // set the result only if disposition have been set
+                if (decodedResult.getDisposition() != null) {
+                    this.result = decodedResult;
+                }
                 switch (status) {
                 case HTTP_STATUS_CODE_201:
-                    return true;
                 case HTTP_STATUS_CODE_200:
                     return true;
                 case HTTP_STATUS_CODE_500:
@@ -492,8 +493,6 @@ public class IcapMessage {
         return false;
     }
 
-
-
     /**
      * Parse ICAP headers.
      *
@@ -505,11 +504,13 @@ public class IcapMessage {
         return pat.split(buf);
     }
 
+    /**
+     *
+     * @return icap message headers
+     */
     public String[] getIcapHeaders() {
         return icapHeaders;
     }
-
-
 
     /** ICAP message states - when parsing. */
     enum State {

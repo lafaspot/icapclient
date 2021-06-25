@@ -1,5 +1,7 @@
 package com.lafaspot.icap.client.session;
 
+import com.lafaspot.icap.client.IcapRequestProducer;
+import com.lafaspot.icap.client.IcapResponseConsumer;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -24,6 +26,8 @@ import com.lafaspot.logfast.logging.LogContext;
 import com.lafaspot.logfast.logging.LogManager;
 import com.lafaspot.logfast.logging.Logger;
 
+import static org.mockito.Matchers.any;
+
 /**
  * UTs for IcapRouteSpecificSessionPool.
  *
@@ -44,6 +48,8 @@ public class IcapRouteSpecificSessionPoolTest {
         final URI route = new URI("icap://127.0.0.1:1344");
         final Logger logger = Mockito.mock(Logger.class);
         final IcapSession createdSess1 = Mockito.mock(IcapSession.class);
+        final IcapRequestProducer requestProducer = Mockito.mock(IcapRequestProducer.class);
+        final IcapResponseConsumer responseConsumer = Mockito.mock(IcapResponseConsumer.class);
         Mockito.when(createdSess1.isAvailable()).thenReturn(false);
         Mockito.when(createdSess1.getCreateTime()).thenReturn(System.currentTimeMillis());
         Mockito.when(createdSess1.isDead()).thenReturn(false);
@@ -57,7 +63,7 @@ public class IcapRouteSpecificSessionPoolTest {
 
         final IcapRouteSpecificSessionPool pool = new IcapRouteSpecificSessionPool(client, route, MAX_SESSIONS, logger);
 
-        Mockito.when(client.connect(Mockito.any(URI.class))).thenAnswer(new Answer<IcapSession>() {
+        Mockito.when(client.connect(any(URI.class), any(IcapRequestProducer.class), any(IcapResponseConsumer.class))).thenAnswer(new Answer<IcapSession>() {
             private int count = 0;
             @Override
             public IcapSession answer(final InvocationOnMock inv) {
@@ -70,11 +76,12 @@ public class IcapRouteSpecificSessionPoolTest {
 
         });
 
-        IcapSession sess1 = pool.lease(10);
+        IcapSession sess1 = pool.lease(10, requestProducer, responseConsumer);
         Assert.assertNotNull(sess1);
-        IcapSession sess2 = pool.lease(10);
+        IcapSession sess2 = pool.lease(10, requestProducer, responseConsumer);
         Assert.assertNotNull(sess2);
-        Mockito.verify(client, Mockito.times(2)).connect(Mockito.any(URI.class));
+        Mockito.verify(client, Mockito.times(2)).connect(any(URI.class), any(IcapRequestProducer.class),
+                any(IcapResponseConsumer.class));
         Assert.assertEquals(pool.size(), 2);
         Assert.assertEquals(pool.availableSize(), 0);
         Assert.assertEquals(pool.leasedSize(), 2);
@@ -87,6 +94,8 @@ public class IcapRouteSpecificSessionPoolTest {
         final URI route = new URI("icap://127.0.0.1:1344");
         final Logger logger = Mockito.mock(Logger.class);
         final IcapSession createdSess1 = Mockito.mock(IcapSession.class);
+        final IcapRequestProducer requestProducer = Mockito.mock(IcapRequestProducer.class);
+        final IcapResponseConsumer responseConsumer = Mockito.mock(IcapResponseConsumer.class);
         Mockito.when(createdSess1.isAvailable()).thenReturn(true);
         Mockito.when(createdSess1.getCreateTime()).thenReturn(System.currentTimeMillis());
         Mockito.when(createdSess1.isDead()).thenReturn(true);
@@ -100,7 +109,8 @@ public class IcapRouteSpecificSessionPoolTest {
 
         final IcapRouteSpecificSessionPool pool = new IcapRouteSpecificSessionPool(client, route, MAX_SESSIONS, logger);
 
-        Mockito.when(client.connect(Mockito.any(URI.class))).thenAnswer(new Answer<IcapSession>() {
+        Mockito.when(client.connect(any(URI.class), any(IcapRequestProducer.class),
+                any(IcapResponseConsumer.class))).thenAnswer(new Answer<IcapSession>() {
             private int count = 0;
             @Override
             public IcapSession answer(final InvocationOnMock inv) {
@@ -112,11 +122,12 @@ public class IcapRouteSpecificSessionPoolTest {
             }
         });
 
-        IcapSession sess1 = pool.lease(10);
+        IcapSession sess1 = pool.lease(10, requestProducer, responseConsumer);
         Assert.assertNotNull(sess1);
-        IcapSession sess2 = pool.lease(10);
+        IcapSession sess2 = pool.lease(10, requestProducer, responseConsumer);
         Assert.assertNotNull(sess2);
-        Mockito.verify(client, Mockito.times(2)).connect(Mockito.any(URI.class));
+        Mockito.verify(client, Mockito.times(2)).connect(any(URI.class), any(IcapRequestProducer.class),
+                any(IcapResponseConsumer.class));
         Assert.assertEquals(pool.size(), 1);
         Assert.assertEquals(pool.availableSize(), 0);
         Assert.assertEquals(pool.leasedSize(), 1);
@@ -130,6 +141,8 @@ public class IcapRouteSpecificSessionPoolTest {
         final URI route = new URI("icap://127.0.0.1:1344");
         final Logger logger = Mockito.mock(Logger.class);
         final IcapSession createdSess1 = Mockito.mock(IcapSession.class);
+        final IcapRequestProducer requestProducer = Mockito.mock(IcapRequestProducer.class);
+        final IcapResponseConsumer responseConsumer = Mockito.mock(IcapResponseConsumer.class);
         Mockito.when(createdSess1.isAvailable()).thenReturn(true);
         final long createTime = 5 * 60 * 60 * 1000;
         Mockito.when(createdSess1.getCreateTime()).thenReturn(createTime);
@@ -144,7 +157,8 @@ public class IcapRouteSpecificSessionPoolTest {
 
         final IcapRouteSpecificSessionPool pool = new IcapRouteSpecificSessionPool(client, route, MAX_SESSIONS, logger);
 
-        Mockito.when(client.connect(Mockito.any(URI.class))).thenAnswer(new Answer<IcapSession>() {
+        Mockito.when(client.connect(any(URI.class), any(IcapRequestProducer.class),
+                any(IcapResponseConsumer.class))).thenAnswer(new Answer<IcapSession>() {
             private int count = 0;
             @Override
             public IcapSession answer(final InvocationOnMock inv) {
@@ -156,11 +170,12 @@ public class IcapRouteSpecificSessionPoolTest {
             }
         });
 
-        IcapSession sess1 = pool.lease(10);
+        IcapSession sess1 = pool.lease(10, requestProducer, responseConsumer);
         Assert.assertNotNull(sess1);
-        IcapSession sess2 = pool.lease(10);
+        IcapSession sess2 = pool.lease(10, requestProducer, responseConsumer);
         Assert.assertNotNull(sess2);
-        Mockito.verify(client, Mockito.times(2)).connect(Mockito.any(URI.class));
+        Mockito.verify(client, Mockito.times(2)).connect(any(URI.class), any(IcapRequestProducer.class),
+                any(IcapResponseConsumer.class));
         Assert.assertEquals(pool.size(), 1);
         Assert.assertEquals(pool.availableSize(), 0);
         Assert.assertEquals(pool.leasedSize(), 1);
@@ -174,19 +189,23 @@ public class IcapRouteSpecificSessionPoolTest {
         final URI route = new URI("icap://127.0.0.1:1344");
         final Logger logger = Mockito.mock(Logger.class);
         final IcapSession sess = Mockito.mock(IcapSession.class);
+        final IcapRequestProducer requestProducer = Mockito.mock(IcapRequestProducer.class);
+        final IcapResponseConsumer responseConsumer = Mockito.mock(IcapResponseConsumer.class);
         Mockito.when(sess.isAvailable()).thenReturn(true);
         Mockito.when(sess.getCreateTime()).thenReturn(System.currentTimeMillis());
         Mockito.when(sess.isDead()).thenReturn(false);
         Mockito.when(sess.getCount()).thenReturn(1L);
 
         final IcapRouteSpecificSessionPool pool = new IcapRouteSpecificSessionPool(client, route, MAX_SESSIONS, logger);
-        Mockito.when(client.connect(Mockito.any(URI.class))).thenReturn(sess);
+        Mockito.when(client.connect(any(URI.class), any(IcapRequestProducer.class),
+                any(IcapResponseConsumer.class))).thenReturn(sess);
 
-        IcapSession sess1 = pool.lease(CONNECT_TIMEOUT);
+        IcapSession sess1 = pool.lease(CONNECT_TIMEOUT, requestProducer, responseConsumer);
         Assert.assertNotNull(sess1);
-        IcapSession sess2 = pool.lease(CONNECT_TIMEOUT);
+        IcapSession sess2 = pool.lease(CONNECT_TIMEOUT, requestProducer, responseConsumer);
         Assert.assertNotNull(sess2);
-        Mockito.verify(client, Mockito.times(1)).connect(Mockito.any(URI.class));
+        Mockito.verify(client, Mockito.times(1)).connect(any(URI.class), any(IcapRequestProducer.class),
+                any(IcapResponseConsumer.class));
         Assert.assertEquals(pool.size(), 1);
         Assert.assertEquals(pool.availableSize(), 0);
         Assert.assertEquals(pool.leasedSize(), 1);
@@ -199,11 +218,14 @@ public class IcapRouteSpecificSessionPoolTest {
         final IcapClient client = Mockito.mock(IcapClient.class);
         final URI route = new URI("icap://127.0.0.1:1344");
         final Logger logger = Mockito.mock(Logger.class);
+        final IcapRequestProducer requestProducer = Mockito.mock(IcapRequestProducer.class);
+        final IcapResponseConsumer responseConsumer = Mockito.mock(IcapResponseConsumer.class);
 
         final IcapRouteSpecificSessionPool pool = new IcapRouteSpecificSessionPool(client, route, MAX_SESSIONS, logger);
-        Mockito.when(client.connect(Mockito.any(URI.class))).thenThrow(new IcapException(FailureType.NOT_CONNECTED));
+        Mockito.when(client.connect(any(URI.class), any(IcapRequestProducer.class),
+                any(IcapResponseConsumer.class))).thenThrow(new IcapException(FailureType.NOT_CONNECTED));
 
-        IcapSession sess = pool.lease(10000);
+        IcapSession sess = pool.lease(10000, requestProducer, responseConsumer);
         Assert.assertNotNull(sess);
     }
 
@@ -222,13 +244,17 @@ public class IcapRouteSpecificSessionPoolTest {
 
         final int maxAllowedSessions = 1;
         final IcapRouteSpecificSessionPool pool = new IcapRouteSpecificSessionPool(client, route, maxAllowedSessions, logger);
-        Mockito.when(client.connect(Mockito.any(URI.class))).thenReturn(sess);
+        final IcapRequestProducer requestProducer = Mockito.mock(IcapRequestProducer.class);
+        final IcapResponseConsumer responseConsumer = Mockito.mock(IcapResponseConsumer.class);
+        Mockito.when(client.connect(any(URI.class), any(IcapRequestProducer.class),
+                any(IcapResponseConsumer.class))).thenReturn(sess);
 
-        IcapSession sess1 = pool.lease(CONNECT_TIMEOUT);
+        IcapSession sess1 = pool.lease(CONNECT_TIMEOUT, requestProducer, responseConsumer);
         Assert.assertNotNull(sess1);
-        IcapSession sess2 = pool.lease(CONNECT_TIMEOUT);
+        IcapSession sess2 = pool.lease(CONNECT_TIMEOUT, requestProducer, responseConsumer);
         Assert.assertNotNull(sess2);
-        Mockito.verify(client, Mockito.times(1)).connect(Mockito.any(URI.class));
+        Mockito.verify(client, Mockito.times(1)).connect(any(URI.class), any(IcapRequestProducer.class),
+                any(IcapResponseConsumer.class));
         Assert.assertEquals(pool.size(), 1);
         Assert.assertEquals(pool.availableSize(), 0);
         Assert.assertEquals(pool.leasedSize(), 1);

@@ -16,6 +16,8 @@ import java.util.concurrent.locks.ReentrantLock;
 import javax.annotation.Nonnull;
 
 import com.lafaspot.icap.client.IcapClient;
+import com.lafaspot.icap.client.IcapRequestProducer;
+import com.lafaspot.icap.client.IcapResponseConsumer;
 import com.lafaspot.icap.client.exception.IcapException;
 import com.lafaspot.icap.client.exception.IcapException.FailureType;
 import com.lafaspot.logfast.logging.Logger;
@@ -79,12 +81,15 @@ public class IcapRouteSpecificSessionPool {
      * Returns a IcapSession object, if available. Returns null if not.
      *
      * @param timeout time in millisecond
+     * @param icapRequestProducer An ICAP request producer
+     * @param icapResponseConsumer An ICAP response consumer
      * @return IcapSession object
      * @throws TimeoutException when a session could not be found within timeout given
      * @throws IcapException on failure
      */
     @Nonnull
-    public IcapSession lease(final int timeout) throws TimeoutException, IcapException {
+    public IcapSession lease(final int timeout, @Nonnull final IcapRequestProducer icapRequestProducer,
+            @Nonnull final IcapResponseConsumer icapResponseConsumer) throws TimeoutException, IcapException {
         final long now = clock.millis();
         final long deadline = timeout + now;
 
@@ -140,7 +145,7 @@ public class IcapRouteSpecificSessionPool {
                     throw new IcapException(FailureType.NO_FREE_CONNECTION);
                 }
                 // try getting a new session
-                sess = client.connect(route);
+                sess = client.connect(route, icapRequestProducer, icapResponseConsumer);
                 leased.add(sess);
             } else {
                 availableIter.remove();

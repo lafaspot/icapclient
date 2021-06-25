@@ -46,6 +46,8 @@ public class IcapClientTest {
 
         final Bootstrap bootstrap = Mockito.mock(Bootstrap.class);
         final ChannelFuture connectFuture = Mockito.mock(ChannelFuture.class);
+        final IcapRequestProducer requestProducer = Mockito.mock(IcapRequestProducer.class);
+        final IcapResponseConsumer responseConsumer = Mockito.mock(IcapResponseConsumer.class);
         Mockito.when(bootstrap.group(Mockito.any(NioEventLoopGroup.class))).thenReturn(bootstrap);
         Mockito.when(bootstrap.channel(NioSocketChannel.class)).thenReturn(bootstrap);
         Mockito.when(bootstrap.connect(Mockito.anyString(), Mockito.anyInt())).thenReturn(connectFuture);
@@ -65,7 +67,7 @@ public class IcapClientTest {
         Mockito.when(connectChannel.closeFuture()).thenReturn(connectFuture);
 
         final IcapRouteSpecificSessionPool pool = new IcapRouteSpecificSessionPool(client, route, MAX_SESSIONS, logger);
-        IcapSession sess = pool.lease(10);
+        IcapSession sess = pool.lease(10, requestProducer, responseConsumer);
         Assert.assertNotNull(sess);
     }
 }
