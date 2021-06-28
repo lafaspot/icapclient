@@ -1,5 +1,8 @@
 package com.lafaspot.icap.client;
 
+import com.lafaspot.icap.client.codec.IcapMessageDecoder;
+import com.lafaspot.icap.client.impl.DefaultIcapRequestProducer;
+import com.lafaspot.icap.client.impl.DefaultIcapRespConsumer;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
@@ -14,6 +17,7 @@ import org.apache.http.message.BasicLineParser;
 import org.apache.http.message.LineParser;
 import org.apache.http.message.ParserCursor;
 import org.apache.http.util.CharArrayBuffer;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -25,6 +29,8 @@ import com.lafaspot.logfast.logging.LogContext;
 import com.lafaspot.logfast.logging.LogManager;
 import com.lafaspot.logfast.logging.Logger;
 import com.lafaspot.logfast.logging.Logger.Level;
+
+import static org.mockito.Mockito.when;
 
 public class IcapMessageTest {
 
@@ -70,8 +76,11 @@ public class IcapMessageTest {
                 + "Encapsulated: res-hdr=0, res-body=83\r\n" + "\r\n" + "10\r\n" + "bbbbbbbbbbbbbbbb";
 
         ByteBuf buf = Unpooled.copiedBuffer(res.getBytes(StandardCharsets.UTF_8));
+        DefaultIcapRespConsumer icapRespConsumer = new DefaultIcapRespConsumer();
+        IcapMessageDecoder messageDecoder = Mockito.mock(IcapMessageDecoder.class);
+        when(messageDecoder.getIcapResponseConsumer()).thenReturn(icapRespConsumer);
         IcapMessage msg = new IcapMessage(logger);
-        msg.parse(buf, null);
+        msg.parse(buf, messageDecoder);
         Assert.assertNull(msg.getCause());
 
         Assert.assertEquals(msg.getResult().getDisposition(), IcapResult.Disposition.INFECTED_REPLACED);
@@ -94,7 +103,10 @@ public class IcapMessageTest {
                 + "\r\n" + "HTTP/1.1 200 OK\r\n" + "Via: 1.1 Symantec Scan Engine (ICAP)\r\n" + "\r\n" + "4\r\n" + "abcd\r\n\0";
 
         final IcapMessage msg = new IcapMessage(logger);
-        msg.parse(Unpooled.copiedBuffer(msgStr.getBytes(StandardCharsets.UTF_8)), null);
+        IcapMessageDecoder messageDecoder = Mockito.mock(IcapMessageDecoder.class);
+        DefaultIcapRespConsumer icapRespConsumer = new DefaultIcapRespConsumer();
+        when(messageDecoder.getIcapResponseConsumer()).thenReturn(icapRespConsumer);
+        msg.parse(Unpooled.copiedBuffer(msgStr.getBytes(StandardCharsets.UTF_8)), messageDecoder);
         if (null != msg.getCause()) {
             msg.getCause().printStackTrace();
         }
@@ -146,10 +158,10 @@ public class IcapMessageTest {
         final boolean keepAlive = true;
         final URI uri = URI.create("icap://127.0.0.1:1344");
 
-        final IcapRespmod msg = new IcapRespmod(uri, keepAlive, filename, inBuffer);
+        final IcapRespmod msg = new IcapRespmod(uri, expected, inBuffer, AbstractIcapRequestProducer.TRAILER_BYTES);
 
         Assert.assertEquals(msg.getInStream(), inBuffer);
-        Assert.assertEquals(msg.getIcapMessage(), expected);
+        Assert.assertEquals(msg.getRespModString(), expected);
     }
 
     @Test(enabled = false)

@@ -9,11 +9,12 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.Nonnull;
 
+import com.lafaspot.icap.client.IcapRequestProducer;
+import com.lafaspot.icap.client.IcapResponseConsumer;
 import com.lafaspot.icap.client.IcapResult;
 import com.lafaspot.icap.client.IcapResult.Disposition;
 import com.lafaspot.icap.client.codec.IcapMessage;
 import com.lafaspot.icap.client.codec.IcapMessageDecoder;
-import com.lafaspot.icap.client.codec.IcapOptions;
 import com.lafaspot.icap.client.codec.IcapRespmod;
 import com.lafaspot.icap.client.exception.IcapException;
 import com.lafaspot.logfast.logging.LogContext;
@@ -30,6 +31,7 @@ import io.netty.util.concurrent.GenericFutureListener;
  * IcapSession - identifies a session that represents one scan request.
  *
  * @author kraman
+ * @author nimmyr
  *
  */
 public class IcapSession {
@@ -44,11 +46,14 @@ public class IcapSession {
      * @param inactivityTimeout channel inactivity timeout
      * @param reuseSession if sessions should be reused
      * @param logManager the LogManager instance
+     * @param icapRequestProducer An ICAP request producer
+     * @param icapResponseConsumer An ICAP response consumer
      * @throws IcapException on failure
      */
     public IcapSession(@Nonnull final String sessionId, @Nonnull final Bootstrap bootstrap, @Nonnull final URI uri,
             final int connectTimeout,
-            final int inactivityTimeout, final boolean reuseSession, @Nonnull final LogManager logManager)
+            final int inactivityTimeout, final boolean reuseSession, @Nonnull final LogManager logManager,
+            @Nonnull final IcapRequestProducer icapRequestProducer, @Nonnull final IcapResponseConsumer icapResponseConsumer)
             throws IcapException {
         this.bootstrap = bootstrap;
         this.serverUri = uri;
@@ -59,6 +64,8 @@ public class IcapSession {
         this.reuseSession = reuseSession;
         LogContext context = new SessionLogContext("IcapSession-" + uri.toASCIIString(), sessionId);
         this.logger = logManager.getLogger(context);
+        this.icapRequestProducer = icapRequestProducer;
+        this.icapResponseConsumer = icapResponseConsumer;
     }
 
     /**
@@ -81,7 +88,7 @@ public class IcapSession {
 
             this.sessionChannel = future.channel();
             this.sessionChannel.pipeline().addLast("inactivityHandler", new IcapInactivityHandler(this, inactivityTimeout, logger));
-            this.sessionChannel.pipeline().addLast(new IcapMessageDecoder(logger));
+            this.sessionChannel.pipeline().addLast(new IcapMessageDecoder(logger, icapResponseConsumer));
             this.sessionChannel.pipeline().addLast(new IcapChannelHandler(this));
 
             final IcapSession thisSession = this;
@@ -109,8 +116,6 @@ public class IcapSession {
         if (stateRef.get() != IcapSessionState.CONNECTED) {
             throw new IcapException(IcapException.FailureType.NOT_CONNECTED);
         }
-        this.filename = filename;
-        this.fileToScan = fileToScan;
 
         if (fileToScan.length == 0) {
             IcapFuture icapFuture = new IcapFuture(this);
@@ -126,7 +131,7 @@ public class IcapSession {
         try {
             logger.debug("connected, sending", null);
             stateRef.set(IcapSessionState.OPTIONS);
-            Future writeFuture = this.sessionChannel.writeAndFlush(new IcapOptions(serverUri).getMessage());
+            Future writeFuture = this.sessionChannel.writeAndFlush(icapRequestProducer.generateOptions().getMessage());
 
         } catch (final Exception e) {
             throw new IcapException(IcapException.FailureType.SCAN_REQUEST_FAILED, e);
@@ -155,11 +160,12 @@ public class IcapSession {
             } else {
                 stateRef.set(IcapSessionState.SCAN);
                 msg.reset();
-                final IcapRespmod scanReq = new IcapRespmod(serverUri, reuseSession, filename, fileToScan);
-                logger.debug(" sending scan req [\r\n" + scanReq.getIcapMessage() + "\r\n]", null);
-                this.sessionChannel.writeAndFlush(scanReq.getIcapMessage());
-                this.sessionChannel.writeAndFlush(scanReq.getInStream());
-                this.sessionChannel.writeAndFlush(scanReq.getTrailerBytes());
+                final IcapRespmod icapRespmod = icapRequestProducer.generateRespMod(reuseSession);
+                logger.debug(" sending scan req [\r\n" + icapRespmod.getRespModString() + "\r\n]", null);
+                this.sessionChannel.writeAndFlush(icapRespmod.getRespModString());
+                this.sessionChannel.writeAndFlush(icapRespmod.getInStream());
+                this.sessionChannel.writeAndFlush(icapRespmod.getTrailerBytes());
+                this.sessionChannel.writeAndFlush(icapRespmod.getEndOfMessage());
                 logger.debug(" written payload -> ", null);
                 this.sessionChannel.flush();
             }
@@ -237,6 +243,8 @@ public class IcapSession {
         final Channel ch = this.sessionChannel;
         futureRef.set(null);
         this.sessionChannel = null;
+        this.icapResponseConsumer = null;
+        this.icapRequestProducer = null;
         ch.close();
     }
 
@@ -298,12 +306,6 @@ public class IcapSession {
     /** Reference to the current IcapFuture object. */
     private final AtomicReference<IcapFuture> futureRef = new AtomicReference<IcapFuture>();
 
-    /** pointer to the byte stream of the file to be scanned. */
-    private byte[] fileToScan;
-
-    /** filename of the input file to be scanned. */
-    private String filename;
-
     /** Server to connect to. */
     private final URI serverUri;
 
@@ -333,6 +335,12 @@ public class IcapSession {
 
     /** Enable session reuse. */
     private final boolean reuseSession;
+
+    /** An ICAP request producer to be used for this session. */
+    private IcapRequestProducer icapRequestProducer;
+
+    /** An ICAP response consumer to be used for this session. */
+    private IcapResponseConsumer icapResponseConsumer;
 
     /** Enum identifying the session states. */
     enum IcapSessionState {

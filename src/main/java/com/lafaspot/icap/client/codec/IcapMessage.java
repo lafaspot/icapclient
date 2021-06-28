@@ -3,15 +3,11 @@
  */
 package com.lafaspot.icap.client.codec;
 
+import com.lafaspot.icap.client.IcapResult;
+import com.lafaspot.icap.client.exception.IcapException;
+import com.lafaspot.icap.client.exception.IcapException.FailureType;
+import com.lafaspot.logfast.logging.Logger;
 import io.netty.buffer.ByteBuf;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.regex.Pattern;
-
-import javax.annotation.Nonnull;
-
 import org.apache.http.Header;
 import org.apache.http.HeaderElement;
 import org.apache.http.StatusLine;
@@ -21,16 +17,17 @@ import org.apache.http.message.LineParser;
 import org.apache.http.message.ParserCursor;
 import org.apache.http.util.CharArrayBuffer;
 
-import com.lafaspot.icap.client.IcapResult;
-import com.lafaspot.icap.client.IcapResult.Disposition;
-import com.lafaspot.icap.client.exception.IcapException;
-import com.lafaspot.icap.client.exception.IcapException.FailureType;
-import com.lafaspot.logfast.logging.Logger;
+import javax.annotation.Nonnull;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * Base IcapMessage object.
  *
  * @author kraman
+ * @author nimmyr
  *
  */
 public class IcapMessage {
@@ -161,7 +158,7 @@ public class IcapMessage {
                 String[] headers = parseHeader(header);
 
                 // now handle the ICAP message
-                if (!handleIcapMessage(headers)) {
+                if (!handleIcapMessage(headers, dec)) {
                     state = State.PARSE_DONE;
 
                     // reset the readIndex to avoid replay
@@ -356,10 +353,11 @@ public class IcapMessage {
      * Parse ICAP message.
      *
      * @param headers headers to be parsed
+     * @param messageDecoder message decoder
      * @return true if response was successful
      * @throws IcapException on failure
      */
-    private boolean handleIcapMessage(@Nonnull final String[] headers) throws IcapException {
+    private boolean handleIcapMessage(@Nonnull final String[] headers, @Nonnull final IcapMessageDecoder messageDecoder) throws IcapException {
         if (headers[0].startsWith(ICAP_PREFIX)) {
 
             icapHeaders = headers;
@@ -373,12 +371,14 @@ public class IcapMessage {
                     throw new IcapException(IcapException.FailureType.PARSE_ERROR, Arrays.asList("icapStatusHdr", errorStatusStr));
                 }
                 // logger.debug("-- icap status code " + status, null);
+                IcapResult decodedResult = messageDecoder.getIcapResponseConsumer().responseReceived(status, this);
+                // set the result only if disposition have been set
+                if (decodedResult.getDisposition() != null) {
+                    this.result = decodedResult;
+                }
                 switch (status) {
                 case HTTP_STATUS_CODE_201:
-                    handleIcap201Ok(headers);
-                    return true;
                 case HTTP_STATUS_CODE_200:
-                    handleIcap200Ok(headers);
                     return true;
                 case HTTP_STATUS_CODE_500:
                     return false;
@@ -494,93 +494,6 @@ public class IcapMessage {
     }
 
     /**
-     * Parse ICAP 200 OK message.
-     *
-     * @param headers ICAP headers
-     * @throws IcapException on failure
-     */
-    private void handleIcap200Ok(@Nonnull final String[] headers) throws IcapException {
-        int index = 1;
-        for (; index < headers.length; index++) {
-            if (headers[index].startsWith(ICAP_ENCAPSULATED_PREFIX)) {
-                int j = headers[index].indexOf(ICAP_RES_BODY_PREFIX);
-                if (-1 != j) {
-                    String resBodyStr = headers[index].substring(j + ICAP_RES_BODY_PREFIX.length() + 1);
-
-                    try {
-                        // TODO: validate the parsed value
-                        Integer.parseInt(resBodyStr.trim());
-                        result.setNumViolations(0);
-                        result.setDisposition(Disposition.CLEAN);
-                        break;
-                    } catch (NumberFormatException e) {
-                        final String partOfTheErrorStr = (resBodyStr.length() > MAX_DEBUG_STR_LEN ? resBodyStr.substring(0,
-                                (MAX_DEBUG_STR_LEN - 1)) : resBodyStr);
-                        throw new IcapException(IcapException.FailureType.PARSE_ERROR, Arrays.asList("bodyLen", partOfTheErrorStr));
-                    }
-
-                } else if (headers[index].indexOf(ICAP_NULL_BODY_PREFIX) != -1) {
-                    // done
-                    return;
-                }
-            }
-        }
-    }
-
-    /**
-     * Parse ICAP 201 message.
-     *
-     * @param headers ICAP headers
-     * @throws IcapException on failure
-     */
-    private void handleIcap201Ok(@Nonnull final String[] headers) throws IcapException {
-
-        // skip first status line
-        int index = 1;
-        for (; index < headers.length; index++) {
-            if (headers[index].startsWith(ICAP_VIOLATIONS_PREFIX)) {
-                break;
-            }
-        }
-
-        int numViolations;
-        if (index < headers.length) {
-            final int k = headers[index].indexOf(':');
-            if (-1 != k) {
-                try {
-                    numViolations = Integer.parseInt(headers[index].substring(k + 1).trim());
-                    result.setNumViolations(numViolations);
-                } catch (NumberFormatException e) {
-                    final String partOfTheErrorStr = (headers[index].length() > MAX_DEBUG_STR_LEN ? headers[index].substring(0,
-                            (MAX_DEBUG_STR_LEN - 1))
-                            : headers[index]);
-                    throw new IcapException(IcapException.FailureType.PARSE_ERROR, Arrays.asList("numViolations", partOfTheErrorStr));
-                }
-            } else {
-                throw new IcapException(IcapException.FailureType.PARSE_ERROR);
-            }
-            // increment
-            index++;
-
-            final int headersPerViolation = 4;
-            // validate header size
-            if (index + (headersPerViolation * numViolations) < headers.length) {
-                // look at first violation only
-                result.setViolationFilename(headers[index++]);
-                result.setViolationName(headers[index++]);
-                result.setViolationId(headers[index++]);
-                String dispositionStr = headers[index++];
-                result.setDispositionAsStr(dispositionStr);
-            } else {
-                throw new IcapException(IcapException.FailureType.PARSE_ERROR);
-            }
-
-        } else {
-            throw new IcapException(IcapException.FailureType.PARSE_ERROR);
-        }
-    }
-
-    /**
      * Parse ICAP headers.
      *
      * @param buf message buffer
@@ -589,6 +502,14 @@ public class IcapMessage {
     private String[] parseHeader(final String buf) {
         final Pattern pat = Pattern.compile("\r\n");
         return pat.split(buf);
+    }
+
+    /**
+     *
+     * @return icap message headers
+     */
+    public String[] getIcapHeaders() {
+        return icapHeaders;
     }
 
     /** ICAP message states - when parsing. */
