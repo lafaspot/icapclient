@@ -156,6 +156,21 @@ public class IcapClient {
             throw new IcapException(FailureType.NOT_CONNECTED, e);
         }
     }
+    
+    /**
+     * API to scan a file, will return a future object to be polled for result.
+     *
+     * @param server URI pointing to the Symantec AV scan server
+     * @param filename name of the file to be scanned
+     * @param toScanFile byte stream of the file to be scanned
+     * @return the future object
+     * @throws IcapException on failure
+     */
+    public Future<IcapResult> scanFileWithOutSessionReuse(@Nonnull final URI server, @Nonnull final String filename, @Nonnull final byte[] toScanFile)
+            throws IcapException {
+        IcapSession sess = connect(server);
+        return sess.scanFile(filename, toScanFile);
+    }
 
     /**
      * API to scan a file (without session pool), will return a future object to be polled for result.
